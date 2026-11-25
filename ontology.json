@@ -1,0 +1,38 @@
+{
+  "@context": {
+    "owl": "http://www.w3.org/2002/07/owl#",
+    "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+    "ex": "https://schema.search.azure.com/entities#"
+  },
+  "@graph": [
+    {
+      "@id": "ex:Person",
+      "@type": "owl:Class",
+      "rdfs:comment": "A person."
+    },
+    {
+      "@id": "ex:Organization",
+      "@type": "owl:Class",
+      "rdfs:comment": "An organization."
+    },
+    {
+      "@id": "ex:Place",
+      "@type": "owl:Class",
+      "rdfs:comment": "A geographic place."
+    },
+    {
+      "@id": "ex:worksFor",
+      "@type": "owl:ObjectProperty",
+      "rdfs:domain": {"@id": "ex:Person"},
+      "rdfs:range": {"@id": "ex:Organization"},
+      "rdfs:comment": "A person's employer."
+    },
+    {
+      "@id": "ex:locatedIn",
+      "@type": "owl:ObjectProperty",
+      "rdfs:domain": {"@id": "ex:Organization"},
+      "rdfs:range": {"@id": "ex:Place"},
+      "rdfs:comment": "The city where an organization is located."
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "endpoint": "https://srch-graphdemo-cfb3dbc7a0.search.windows.net",
+  "api_version": "2026-11-01-preview",
+  "knowledge_base": "fiq-speeches-9c65c09f-kb-f371b3ee92cf7275",
+  "knowledge_source": "fiq-speeches-9c65c09f-entity-f371b3ee92cf7275",
+  "content_index": "fiq-speeches-9c65c09f-entity-f371b3ee92cf7275-index",
+  "graph_index": "fiq-speeches-9c65c09f-entity-f371b3ee92cf7275-graph-index",
+  "blob_prefix": "https://stgraphdemocfb3dbc7a0.blob.core.windows.net/speeches/fiq-speeches-9c65c09f-entity-f371b3ee92cf7275/",
+  "speeches": [
+    {"id":"source-item-732a9b81c7d26e98","title":"April 30, 1789: First Inaugural Address","speaker":"George Washington","date":"1789-04-30"},
+    {"id":"source-item-008e9c1eb0aabd4b","title":"January 20, 1961: Inaugural Address","speaker":"John F. Kennedy","date":"1961-01-20"},
+    {"id":"source-item-5b2445500037005b","title":"January 20, 1981: First Inaugural Address","speaker":"Ronald Reagan","date":"1981-01-20"},
+    {"id":"source-item-de39d3377cd8b589","title":"January 20, 1993: First Inaugural","speaker":"Bill Clinton","date":"1993-01-20"},
+    {"id":"source-item-5dade4ca01e51b21","title":"January 20, 2009: Inaugural Address","speaker":"Barack Obama","date":"2009-01-20"},
+    {"id":"source-item-e0caa49ff2909dd2","title":"January 20, 2021: Inaugural Address","speaker":"Joe Biden","date":"2021-01-20"},
+    {"id":"source-item-131135c6d6e2f1f2","title":"March 4, 1801: First Inaugural Address","speaker":"Thomas Jefferson","date":"1801-03-04"},
+    {"id":"source-item-a7d6a284aa7ca52b","title":"March 4, 1861: First Inaugural Address","speaker":"Abraham Lincoln","date":"1861-03-04"},
+    {"id":"source-item-26bb535ae89f5123","title":"March 4, 1913: First Inaugural Address","speaker":"Woodrow Wilson","date":"1913-03-04"},
+    {"id":"source-item-e8348a78299707b4","title":"March 4, 1933: First Inaugural Address","speaker":"Franklin D. Roosevelt","date":"1933-03-04"}
+  ]
+}

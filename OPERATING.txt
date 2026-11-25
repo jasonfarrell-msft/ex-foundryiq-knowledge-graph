@@ -1,0 +1,279 @@
+Speech Atlas - full-corpus operation
+
+Azure frontend:
+  https://jolly-field-0403ad10f.5.azurestaticapps.net
+Resource group: rg-foundry-graph-test
+Hosting region: East US 2 (Static Web Apps is not offered in the RG's East US).
+SWA Standard: swa-fiq-speeches-9c65c09f
+Linked Python 3.14 Flex Function App: func-fiq-speeches-9c65c09f
+See CLOUD VALIDATION below for verified checks and remaining sign-in validation.
+
+PUBLIC CLOUD ACCESS
+Visitors do not need to sign in or receive a custom role. Requests pass
+through the protected SWA-to-Function link; the Function's managed identity
+still authorizes Azure access. Direct unauthenticated Function requests
+must remain rejected. Anyone can use the public API through the website,
+including automated clients, and submitted questions may generate charges.
+
+SINGLE-SCRIPT RECREATION
+The repository includes data/search-corpus: the five immutable, hash-verified
+publication artifacts for all 1,060 sources, 1,059 canonical speeches and
+7,422 passages. It does not depend on old .foundry-iq or .entity trial state.
+Historical original-input paths in the manifest are provenance only;
+publication reads the bundled artifacts, not files on the original machine.
+Git attributes preserve corpus and original-input bytes without line-ending
+conversion, including clones configured to use CRLF.
+
+Prerequisites: Python 3.14+, Node.js 24+, Azure CLI with Bicep, and an existing
+az login with deployment and resource-scoped role-assignment permissions.
+The script restores missing or mismatched pinned Python dependencies in .venv and missing Node
+dependencies from package-lock.json. It never signs in, grants Owner or
+broad Contributor, invokes a model, or deletes resources. The deployment
+principal receives only scoped Search service/data contributor roles when
+it must publish a new corpus.
+
+Fast recreation reuses the existing verified Search/Foundry data:
+  python3 scripts/deploy_application.py \
+    --subscription YOUR_SUBSCRIPTION_ID \
+    --resource-group rg-speech-atlas-recreated \
+    --data-resource-group rg-foundry-graph-test \
+    --apply
+
+Fast mode requires operator read access and network reachability to that
+Search service; a private-only reused service requires your VPN/private route.
+It never opens the reused service's firewall.
+
+Cold recreation ALSO creates Search, Foundry and its GA chat deployment,
+then publishes every passage with exact readback verification twice:
+  python3 scripts/deploy_application.py \
+    --subscription YOUR_SUBSCRIPTION_ID \
+    --resource-group rg-speech-atlas-recreated \
+    --create-data --publisher-ip YOUR_PUBLIC_IPV4 \
+    --apply
+
+Omit --apply for a completely offline plan. Use a dedicated hosting RG:
+fixed private-DNS zone names belong to one deployment, and collisions with
+other deployments are refused. East US 2 is the default hosting region.
+--data-location selects the cold-mode Search/Foundry region (default East US).
+The latest default GA version of --chat-model is checked against its catalog
+and quota before creation; --chat-capacity defaults to the working sample's
+50 throughput units. A smaller allocation can reject the bounded retrieval
+and answer-synthesis request with token-rate-limit errors.
+GlobalStandard may process outside the deployment region. Capacity isn't a
+spending cap. Reuse the same arguments to resume an owned deployment.
+Use a fresh hosting RG when changing between fast and cold data modes:
+an existing private endpoint cannot be retargeted to another Search service.
+
+The script builds/tests React, validates the corpus, provisions private
+hosting and scoped managed identities, links and hardens the empty Function
+before publishing API code, deploys both applications, rotates the temporary
+frontend deployment credential, and verifies the catalog, actual Function
+identity's Search access, direct-ingress 401 and exact frontend assets.
+New API bindings are packaged privately; api/corpus.json is never overwritten.
+Successful runs print the new website URL and save nonsecret verification
+under ignored .deployments/. No new resources are created by an offline plan.
+
+Cold mode temporarily admits ONLY your explicit publisher IPv4 /32 to the
+keyless Search endpoint. It closes and verifies that exception before API
+publication and attempts closure on failure. Process termination or failed
+Azure cleanup can leave it open: SECURITY-EXCEPTION.json and the Search
+bootstrapAccess tag track this, and reruns close pending exceptions first.
+Recovery needs neither corpus files nor build/model prerequisites:
+  python3 scripts/deploy_application.py \
+    --subscription YOUR_SUBSCRIPTION_ID \
+    --resource-group rg-speech-atlas-recreated \
+    --close-bootstrap --apply
+Do not claim deployment success while bootstrap closure is unverified.
+Foundry has a private endpoint plus a deny-by-default firewall; synthesis
+uses the scoped Search identity with the trusted Azure services exception.
+
+Estimated hosting baseline: fast mode ~$23.60/month; cold mode ~$30.90/month
+with the additional Foundry private endpoint, PLUS Search capacity/model
+usage, DNS/storage/Functions and private-link traffic. These are estimates.
+No chat-synthesis test is performed automatically; only model-free checks.
+
+Use Speech collection to search all records by title, speaker, or date.
+The catalog searches all 1,060 entries and displays 25 per page. Ask a
+question explicitly; example buttons only fill the question box. Select
+citations, graph nodes, or links to highlight the backing passages.
+
+Results use Answer, Graph, and Evidence tabs on desktop and mobile.
+Answers render Markdown headings, lists, tables, and code. Citation buttons
+open Evidence and focus the selected passage. Tab changes preserve the
+result and selections without submitting another question. Raw HTML,
+remote images, and external answer links cannot execute or navigate.
+
+Example:
+  Compare Lincoln's Gettysburg Address and Washington's Farewell Address
+  on national unity. Explain similarities and differences using citations.
+
+CORPUS AND GRAPH
+All 1,060 original source identities are indexed as 7,422 overlapping
+passages, representing 1,059 canonical speeches. The known duplicate
+transcript retains both original source identities. Publication verified
+every UID, every retrievable field and snippet, and all per-source chunk
+counts twice. Original files and prior graph generations remain unchanged.
+
+Search index: fiq-speeches-9c65c09f-app-full-v1
+Knowledge source: fiq-speeches-9c65c09f-app-source-v1
+Knowledge base: fiq-speeches-9c65c09f-app-kb-v1
+Data API: 2026-10-01 (GA).
+Verification report:
+  .foundry-iq/fiq-speeches-9c65c09f/entity/
+  app-full-search-v1-publication-verification.json
+
+api/corpus.json is the verified, nonsecret, server-controlled binding and
+catalog. Full mode is the default and fails closed if this file is absent
+or unverified; it never silently falls back to ten speeches.
+SPEECH_DATASET=sample explicitly selects the historical local ten-source
+binding in api/sample.json. That sample is not included in production ZIPs.
+
+Full-corpus coverage does not mean every answer reads every document.
+Each question retrieves a bounded subset and should not be interpreted as
+an exhaustive comparison or proof of corpus-wide absence.
+
+The graph shows canonical Speech -> cited Passage containment and
+Passage -> Topic case-insensitive, whole-word literal phrase matches from
+61 curated topic seeds and aliases. Duplicate sources share the canonical
+Speech node but preserve distinct source-bound Passage IDs and citations.
+Matched labels retain the original passage's letter case. No fuzzy matching
+or stemming is used for these graph links. The graph does not establish
+author intent, agreement, semantic equivalence, or every answer claim.
+
+This is NOT the failed trial's native semantic graph, nor a repaired or
+whole-corpus semantic graph. Those trial relationships remain unpublished.
+Evidence passages are explicitly labelled HTML-to-text readable projections,
+not byte-verbatim originals; original transcript bytes and correspondence
+ledgers remain preserved.
+
+LIMITS AND COSTS
+One model-backed synthesis request per submitted question; no automatic
+application or transport retries. Azure's internal processing is separate.
+Question <= 2,000 characters; <= 8 output documents requested; <= 20 cited
+passages and <= 60 graph links returned. App deadline 38 seconds, below
+SWA's 45-second limit. Cancellation/timeouts may not stop Azure processing
+or charges. One in-flight question per worker is not a spending cap.
+
+Official USD retail estimates: SWA Standard $9/month; two standard private
+endpoints at $0.01/hour each are about $14.60/month at 730 hours. Combined
+baseline about $23.60/month, PLUS private DNS, storage, Functions usage,
+private-link data, and existing Search/model charges. Private-link first-tier
+data processing is $0.01/GB in each direction. These are estimates, not a
+quote or spending cap; billing agreements and actual usage can differ.
+No always-ready Function instances are configured; maximum instances is one.
+Configure budgets, alerts, and production admission limits before broad use.
+
+LOCAL OPERATION
+Prerequisites: Node.js 24 LTS or later; Python 3.14; an existing az login
+authorized to read these Search resources. Use the project virtual environment:
+
+  source .venv/bin/activate
+  python scripts/start_speech_api.py
+
+In another terminal:
+
+  cd web
+  npm run dev
+
+Open http://127.0.0.1:5173. The loopback API is http://127.0.0.1:7071.
+The launcher explicitly enables local bypass only outside Azure; it must
+never be used as a cloud listener. Vite proxies /api to the same handlers
+used by the deployed Functions app. Health/catalog make no model requests.
+If dependencies are missing, use api/requirements-dev.txt and web/npm ci.
+For the environment's npm mirror, if tarball URLs are incorrectly rewritten,
+use npm ci --replace-registry-host=never to honor the published feed URLs.
+
+DEPLOYMENT AND SECURITY
+infra/speech-app.bicep creates only dedicated hosting/network/storage plus
+the Function identity's scoped Search reader assignment. Existing Search
+public access remains unchanged for local development and the Playground.
+Function outbound traffic has private Search/blob endpoints and private DNS.
+The dedicated host/deployment storage disables public networking and shared
+keys. Function ingress must remain reachable for the SWA linked backend;
+exclusive App Service Authentication v2 protects it.
+
+For a fresh deployment:
+  1. Deploy infra/speech-app.bicep with hardenLinkedAuthentication=false.
+  2. Link the empty Function App to the Standard Static Web App.
+  3. Reapply with hardenLinkedAuthentication=true. This allows only the
+     SWA provider, requires HTTPS, and returns 401 when unauthenticated.
+  4. Package the verified API with the permission-normalizing helper:
+       python scripts/package_speech_api.py NEW_OUTPUT.zip
+     Publish separately:
+       az functionapp deployment source config-zip \
+         -g rg-foundry-graph-test -n func-fiq-speeches-9c65c09f \
+         --src NEW_OUTPUT.zip --build-remote true
+  5. In web/, run npm run build, then swa deploy web --env production
+     --no-use-keychain with a deployment token passed only through
+     SWA_CLI_DEPLOYMENT_TOKEN from a secure source. Rotate it immediately
+     afterward, including on failure. Never put it in argv/config/logs.
+     swa init --yes already generated web/swa-cli.config.json.
+
+SWA deploys only web/dist; api_location stays empty. The Python v2 API
+keeps /api/health, /api/catalog, and /api/ask. Never deploy api/ as SWA's
+managed Functions: this app requires a linked Function Managed Identity.
+No local settings, credentials, tests, or development server ship in the ZIP.
+The production requirements include aiohttp for asynchronous Managed Identity
+authentication. Omitting it causes credential initialization to fail before
+retrieval; cloud-path regression tests exercise the actual identity transport
+without sending a model request.
+
+For a model-free check of the deployed identity's Search read access:
+  curl 'https://jolly-field-0403ad10f.5.azurestaticapps.net/api/health?probe=search'
+This opt-in check reads one UID from the fixed index, returns no passage data,
+and never invokes the knowledge base/model. It shares the request lock and
+has a ten-second deadline with no retries. Normal health checks do not query
+Azure. Search connectivity success does not verify model synthesis.
+
+The API accepts anonymous visitors behind the exclusive linked-platform
+boundary. Never manually set WEBSITE_AUTH_ENABLED as a substitute
+for real platform authentication, or set SPEECH_LOCAL_DEVELOPMENT in Azure.
+APP_ALLOWED_ORIGIN is the exact HTTPS SWA origin. No arbitrary destination,
+index, local path, or graph query is accepted from clients.
+
+PUBLICATION AND TESTS
+scripts/prepare_app_search_corpus.py prepares an immutable new output directory.
+scripts/publish_app_search_corpus.py defaults to an entirely local dry-run.
+--apply creates only the pinned generation, reuses only exact matching
+resources, and retries each failed safe upload up to eleven total attempts.
+It never calls the model. Do not remove its preservation/coverage gates.
+Existing output/config/report files are never overwritten.
+
+Focused checks:
+  PYTHONPATH=api SPEECH_DATASET=sample python -m unittest discover -s api/tests
+  PYTHONPATH=scripts python -m unittest discover -s scripts \
+    -p 'test_publish_app_search_corpus.py'
+  PYTHONPATH=scripts python -m unittest discover -s scripts \
+    -p 'test_package_speech_api.py'
+  cd web && npm test && npm run build
+
+CLOUD VALIDATION
+Frontend HTTPS, security headers, and all-source Search roundtrip are verified.
+Visitor login is no longer required. A model-backed all-source question has
+NOT been tested: the previous live-test approval was exhausted. No additional
+model queries or interactive sign-in were performed.
+The deployed Functions host reports Running and has indexed all three handlers:
+ask, catalog, and health. The public deployment returns 200 for anonymous
+SWA health/catalog, including all 1,060 unique catalog records. An empty
+question returns 400 without reaching the model. All six direct Function
+anonymous/forged-principal probes return 401. Effective EasyAuth still
+requires HTTPS and authentication, with only the exact SWA provider enabled.
+The production ZIP normalizes the verified metadata's archive mode to 0644
+for Linux worker readability; local metadata and the ZIP remain private.
+
+The deployed Function identity's Search read was verified with the opt-in
+probe returning 200 and azure_connectivity=search_verified. Private endpoints
+and DNS remain configured; direct backend probe requests return 401.
+The exact full-corpus readback used the authorized
+operator identity, not a model call or an end-user sign-in. These remaining
+positive synthesis check requires fresh permission for a live question.
+
+The full-corpus GA retrieval request uses maxOutputSizeInTokens, not the
+legacy preview's maxOutputSize. Model-free invalid-input validation confirmed
+the old field was rejected by the GA API and the corrected field recognized.
+An actual GA minimal/extractiveData knowledge-base query also returned 200
+with two references. That check uses semantic retrieval, not chat planning
+or answer synthesis, and does not validate the natural-language answer path.
+The explicit historical sample retains its preview contract. Frontend error
+messages now preserve bounded, sanitized API diagnostics such as the upstream
+HTTP status rather than hiding every failure behind a generic HTTP 502.
