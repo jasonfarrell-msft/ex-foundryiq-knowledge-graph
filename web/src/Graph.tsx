@@ -18,6 +18,7 @@ interface GraphProps {
 
 export function Graph({ graph, coverage, selection, onSelect, loading, edgeLimit, selectedEvidenceCount, onViewEvidence }: GraphProps) {
   const hasNodes = !!graph?.nodes.length;
+  const foundryGraph = graph?.basis === 'foundry_graph_index';
   const phraseGraph = isPhraseGraph(graph, coverage);
   const linkName = phraseGraph ? 'links' : 'relationships';
   const nodesById = new Map(graph?.nodes.map(node => [node.id, node]) ?? []);
@@ -26,10 +27,10 @@ export function Graph({ graph, coverage, selection, onSelect, loading, edgeLimit
   return (
     <section className="graph-panel" aria-labelledby="graph-heading">
       <div className="panel-heading">
-        <div><span className="eyebrow">02 / Explore the cited passages</span><h2 id="graph-heading">{phraseGraph ? 'Sources & phrase matches' : 'Passage graph'}</h2></div>
+        <div><span className="eyebrow">02 / Explore the cited passages</span><h2 id="graph-heading">{foundryGraph ? 'Knowledge graph traversal' : phraseGraph ? 'Sources & phrase matches' : 'Passage graph'}</h2></div>
         <span className="subtle-pill">{graph?.nodes.length ?? 0} nodes · {graph?.edges.length ?? 0} {linkName}</span>
       </div>
-      <p className="graph-disclaimer">{phraseGraph ? 'Cited sources, passages, and case-insensitive exact phrase matches only—not a whole-corpus or validated semantic graph.' : 'Graph relationships in cited passages; not proof of every answer claim.'}</p>
+      <p className="graph-disclaimer">{foundryGraph ? 'Traversed from the Azure AI Search graph index (search.graph GQL) with hydrated passage provenance.' : phraseGraph ? 'Cited sources, passages, and case-insensitive exact phrase matches only—not a whole-corpus or validated semantic graph.' : 'Graph relationships in cited passages; not proof of every answer claim.'}</p>
       {phraseGraph && <details className="graph-method"><summary>What these links mean</summary><p>Canonical speech → Passage means source containment; duplicate source records share the canonical Speech node while citations retain source identity.</p><p>Passage → Topic means a case-insensitive, whole-word literal curated phrase matched in that passage. There is no stemming or fuzzy matching. Edge labels preserve the original matched case; “exact” does not mean byte-for-byte identity.</p><p>Shared topic IDs align curated aliases across sources; they do not establish author intent, semantic relatedness, or agreement. This view may be assembled separately from answer synthesis and does not prove every answer claim.</p></details>}
       <div className="graph-stage" aria-label={phraseGraph ? 'Interactive graph of cited sources, passages and case-insensitive exact phrase matches' : 'Interactive graph of reported relationships'} aria-busy={loading}>
         {hasNodes && graph ? (

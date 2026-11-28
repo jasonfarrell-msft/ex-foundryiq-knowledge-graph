@@ -383,4 +383,39 @@ describe('research workspace', () => {
     }
     expect(fetch.mock.calls.map(call => call[0])).toEqual(['/api/health', '/api/catalog']);
   });
+
+  it('shows Graph RAG mode toggle when enabled and displays executed GQL metadata', async () => {
+    const graphResult = makeFullResult();
+    graphResult.question = 'Compare Lincoln and Washington on unity';
+    graphResult.mode = 'graph';
+    graphResult.gql_queries = ["MATCH (s:Speech)-[r:addressesTopic]->(o:Topic) WHERE LOWER(o.name) CONTAINS 'unity' RETURN s.name AS subject, r.predicate AS predicate, o.name AS object LIMIT 20"];
+    graphResult.graph = {
+      ...graphResult.graph,
+      basis: 'foundry_graph_index',
+    };
+    const fetch = installFetch(async () => json(graphResult), {
+      health: json({ ...fullHealth, graph_rag_available: true }),
+      catalog: json(makeFullCatalog()),
+    });
+    render(<App />);
+    const graphBtn = await screen.findByRole('button', { name: 'Graph RAG (GQL)' });
+    await userEvent.click(graphBtn);
+    expect(graphBtn).toHaveAttribute('aria-pressed', 'true');
+    await submit('Compare Lincoln and Washington on unity');
+    expect(await screen.findByText(/The test passage connects work/)).toBeInTheDocument();
+    expect(fetch).toHaveBeenCalledWith('/api/ask', expect.objectContaining({
+      body: JSON.stringify({ question: 'Compare Lincoln and Washington on unity', mode: 'graph' }),
+    }));
+    await userEvent.click(screen.getByText('Response metadata'));
+    expect(screen.getByText(/MATCH \(s:Speech\)-\[r:addressesTopic\]/)).toBeInTheDocument();
+    await viewTab('Graph');
+    expect(screen.getByRole('heading', { name: 'Knowledge graph traversal' })).toBeInTheDocument();
+
+    // Selecting a RAG history entry restores the Standard RAG mode toggle.
+    const ragBtn = screen.getByRole('button', { name: 'Standard RAG' });
+    await userEvent.click(ragBtn);
+    expect(ragBtn).toHaveAttribute('aria-pressed', 'true');
+    await userEvent.click(screen.getByRole('button', { name: /Compare Lincoln and Washington on unity/ }));
+    expect(screen.getByRole('button', { name: 'Graph RAG (GQL)' })).toHaveAttribute('aria-pressed', 'true');
+  });
 });

@@ -1,0 +1,10 @@
+{
+  "enabled": true,
+  "search_endpoint": "https://srch-graphdemo-cfb3dbc7a0.search.windows.net",
+  "search_api_version": "2026-11-01-preview",
+  "graph_index": "president-graph-v2-graph",
+  "chunks_index": "president-graph-v2-chunks",
+  "graph_name": "president-graph-v2",
+  "foundry_endpoint": "https://ai-graphdemo-cfb3dbc7a0.cognitiveservices.azure.com",
+  "chat_deployment": "chat"
+}

@@ -1,4 +1,4 @@
-import type { AskResult, Catalog, Health } from './types';
+import type { AskResult, Catalog, Health, RetrievalMode } from './types';
 
 export class ApiError extends Error {
   constructor(
@@ -23,7 +23,7 @@ function statusMessage(status: number): string {
 
 async function request<T>(
   path: '/health' | '/catalog' | '/ask',
-  options: { signal?: AbortSignal; question?: string } = {},
+  options: { signal?: AbortSignal; question?: string; mode?: RetrievalMode } = {},
 ): Promise<T> {
   const controller = new AbortController();
   let timedOut = false;
@@ -42,7 +42,15 @@ async function request<T>(
         Accept: 'application/json',
         ...(path === '/ask' ? { 'Content-Type': 'application/json' } : {}),
       },
-      ...(path === '/ask' ? { body: JSON.stringify({ question: options.question }) } : {}),
+      ...(path === '/ask'
+        ? {
+            body: JSON.stringify(
+              options.mode === 'graph'
+                ? { question: options.question, mode: 'graph' }
+                : { question: options.question },
+            ),
+          }
+        : {}),
       credentials: 'same-origin',
       signal: controller.signal,
       redirect: 'error',
@@ -77,8 +85,8 @@ async function request<T>(
 
 export const getHealth = (signal?: AbortSignal) => request<Health>('/health', { signal });
 export const getCatalog = (signal?: AbortSignal) => request<Catalog>('/catalog', { signal });
-export async function askQuestion(question: string, signal?: AbortSignal): Promise<AskResult> {
-  const result = await request<AskResult>('/ask', { question, signal });
+export async function askQuestion(question: string, signal?: AbortSignal, mode?: RetrievalMode): Promise<AskResult> {
+  const result = await request<AskResult>('/ask', { question, signal, mode });
   if (
     typeof result.request_id !== 'string' || typeof result.question !== 'string' ||
     (result.answer !== null && typeof result.answer !== 'string') ||

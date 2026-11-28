@@ -9,8 +9,8 @@ from azure.core.exceptions import AzureError
 from azure.identity.aio import AzureCliCredential, ManagedIdentityCredential
 
 from service import (
-    CONFIG, COVERAGE, MAX_EDGES, MAX_QUESTION, WARNINGS,
-    SearchService, ServiceError, question_from,
+    CONFIG, COVERAGE, GRAPH_CONFIG, MAX_EDGES, MAX_QUESTION, WARNINGS,
+    SearchService, ServiceError, ask_request_from,
 )
 
 
@@ -102,6 +102,7 @@ async def health(req: func.HttpRequest) -> func.HttpResponse:
             return reply({"error": "Search connectivity check could not be completed."}, 502)
     return reply({
         "status": "ok", "configured": True, "coverage": COVERAGE,
+        "graph_rag_available": GRAPH_CONFIG is not None,
         "limits": {"question_characters": MAX_QUESTION, "graph_edges": MAX_EDGES},
         "warnings": WARNINGS, "azure_connectivity": connectivity,
     })
@@ -125,9 +126,9 @@ async def ask(req: func.HttpRequest) -> func.HttpResponse:
     if len(req.get_body()) > 12000:
         return reply({"error": "Request body is too large."}, 413)
     try:
-        question = question_from(req.get_json())
+        question, mode = ask_request_from(req.get_json())
     except (ValueError, TypeError):
-        return reply({"error": "Send only question, containing 1 to 2,000 characters."}, 400)
+        return reply({"error": "Send question (1 to 2,000 characters) and optional mode ('rag' or 'graph')."}, 400)
     if inflight.locked():
         return reply({"error": "Another question is running. Please wait."}, 429, 5)
     try:
@@ -138,7 +139,8 @@ async def ask(req: func.HttpRequest) -> func.HttpResponse:
                 follow_redirects=False,
                 transport=httpx.AsyncHTTPTransport(retries=0),
             ) as client:
-                result = await SearchService(credential, client).ask(question)
+                service = SearchService(credential, client)
+                result = await (service.ask_graph(question) if mode == "graph" else service.ask(question))
                 return reply(result)
     except ServiceError as error:
         return reply({"error": str(error)}, error.status, error.retry_after)

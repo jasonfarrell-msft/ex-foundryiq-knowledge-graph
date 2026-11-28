@@ -20,6 +20,16 @@ describe('same-origin API client', () => {
     expect(result.citations[0].chunk_id).toBe('opaque/chunk:1');
   });
 
+  it('sends mode=graph when graph retrieval mode is selected', async () => {
+    const fetch = vi.fn().mockResolvedValue(json(makeResult({ mode: 'graph', gql_queries: ['MATCH (s:Speech)-[r:addressesTopic]->(o:Topic) RETURN s.name LIMIT 5'] })));
+    vi.stubGlobal('fetch', fetch);
+    const result = await askQuestion('A graph question', undefined, 'graph');
+    expect(fetch).toHaveBeenCalledWith('/api/ask', expect.objectContaining({
+      body: JSON.stringify({ question: 'A graph question', mode: 'graph' }),
+    }));
+    expect(result.mode).toBe('graph');
+  });
+
   it('reads only API endpoints for health and catalog', async () => {
     const fetch = vi.fn().mockImplementation(async () => json(health));
     vi.stubGlobal('fetch', fetch);

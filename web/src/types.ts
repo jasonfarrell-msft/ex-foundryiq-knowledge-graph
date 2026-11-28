@@ -1,3 +1,5 @@
+export type RetrievalMode = 'rag' | 'graph';
+
 export interface Coverage {
   label: string;
   source_count: number;
@@ -8,6 +10,7 @@ export interface Coverage {
 export interface Health {
   status: string;
   configured: boolean;
+  graph_rag_available?: boolean;
   azure_connectivity?: 'not_probed';
   coverage: Coverage;
   limits: { question_characters: number; graph_edges: number };
@@ -65,6 +68,8 @@ export interface AskResult {
   coverage: Coverage;
   timing_ms: number;
   partial: boolean;
+  mode?: RetrievalMode;
+  gql_queries?: string[];
 }
 
 export type Selection =

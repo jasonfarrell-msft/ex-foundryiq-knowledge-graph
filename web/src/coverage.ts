@@ -24,6 +24,7 @@ export function coverageGuidance(coverage: Coverage | null | undefined): string 
 }
 
 export function isPhraseGraph(graph: AskResult['graph'] | null, coverage: Coverage | null | undefined): boolean {
+  if (graph?.basis === 'foundry_graph_index') return false;
   // The basis is explicit when supplied. Full-corpus responses use the
   // conservative source / passage / case-insensitive literal phrase interpretation even if omitted.
   return graph?.basis === 'source_and_exact_topic_phrase_matches' || coverage?.full_corpus_available === true;

@@ -5,7 +5,7 @@ import { Evidence } from './Evidence';
 import { Graph } from './Graph';
 import { CatalogBrowser } from './CatalogBrowser';
 import { canonicalSummary, coverageGuidance, coverageSummary, formatCount, isPhraseGraph } from './coverage';
-import type { AskResult, Catalog, Health, Selection } from './types';
+import type { AskResult, Catalog, Health, RetrievalMode, Selection } from './types';
 
 const suggestions = [
   'How does Roosevelt’s March 4, 1933 inaugural address connect banking reform, agriculture, and employment?',
@@ -41,6 +41,7 @@ export function App() {
   const [catalogError, setCatalogError] = useState<ApiError | null>(null);
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [question, setQuestion] = useState('');
+  const [mode, setMode] = useState<RetrievalMode>('rag');
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
   const [result, setResult] = useState<AskResult | null>(null);
   const [history, setHistory] = useState<AskResult[]>([]);
@@ -88,7 +89,7 @@ export function App() {
     setFailure(null);
     setCancelled(false);
     try {
-      const next = await askQuestion(submitted, controller.signal);
+      const next = await askQuestion(submitted, controller.signal, health?.graph_rag_available ? mode : undefined);
       if (controller.signal.aborted) return;
       setResult(next);
       setHistory(previous => [next, ...previous].slice(0, 12));
@@ -117,6 +118,7 @@ export function App() {
     if (pending) return;
     setResult(item);
     setQuestion(item.question);
+    if (item.mode) setMode(item.mode);
     setSelection(null);
     setFailure(null);
     setCancelled(false);
@@ -178,6 +180,15 @@ export function App() {
           {health && (!health.configured || health.status !== 'ok') && <div className="notice" role="status">API configuration is incomplete. Ask your administrator to check the linked speech service. Azure connectivity has not been verified.</div>}
           <section className="question-card" aria-labelledby="question-heading">
             <div className="question-topline"><label id="question-heading" htmlFor="question">What would you like to explore?</label><span>01 / ASK THE COLLECTION</span></div>
+            {health?.graph_rag_available && (
+              <div className="mode-toggle" role="group" aria-label="Retrieval mode">
+                <span className="mode-label">RETRIEVAL MODE</span>
+                <div className="mode-buttons">
+                  <button type="button" disabled={pending} aria-pressed={mode === 'rag'} onClick={() => setMode('rag')}>Standard RAG</button>
+                  <button type="button" disabled={pending} aria-pressed={mode === 'graph'} onClick={() => setMode('graph')}>Graph RAG (GQL)</button>
+                </div>
+              </div>
+            )}
             <form onSubmit={submit}>
               <textarea ref={textarea} id="question" name="question" rows={3} maxLength={limit} value={question} onChange={event => setQuestion(event.target.value)} disabled={pending} placeholder="How did presidents frame the challenges of their time?" aria-describedby="question-help question-count" />
               <div className="question-actions">
@@ -192,7 +203,7 @@ export function App() {
             {pending ? <p><span className="spinner" aria-hidden="true" /> Reading cited passages for <strong>“{pendingQuestion}”</strong>. {result && 'The previous result remains below.'} This can take up to 42 seconds.</p> : cancelled ? <p>Request cancelled in this browser. {result && 'The previous result is still shown.'} Cancellation may not stop server processing or charges.</p> : !result && !failure ? <p><span aria-hidden="true">↳</span> Start with a question. Every connection begins with a source.</p> : null}
           </div>
           {failure && <div className="failure-block"><p className="failed-question">Request failed for: <strong>“{failure.question}”</strong></p><ErrorNotice error={failure.error} />{result && <p className="notice">Previous result retained below for “{result.question}”. It is not a response to the failed question.</p>}</div>}
-          {result && <div className="result-context"><span className="eyebrow">{pending || failure || cancelled ? 'PREVIOUS RESULT' : 'SHOWING RESULT FOR'}</span><p>{result.question}</p><small>Response collection: {result.coverage.label} · {formatCount(result.coverage.source_count)} available sources{canonicalSummary(result.coverage) && ` · ${canonicalSummary(result.coverage)}`} · {Number.isFinite(result.timing_ms) ? `${(result.timing_ms / 1000).toFixed(1)}s` : 'Timing unavailable'}{result.partial ? ' · Partial response' : ''}</small><p className="result-scope">{result.citations.length} cited passages in this response; this is not an exhaustive reading of the collection.</p></div>}
+          {result && <div className="result-context"><span className="eyebrow">{pending || failure || cancelled ? 'PREVIOUS RESULT' : 'SHOWING RESULT FOR'}</span><p>{result.question}</p><small>{result.mode === 'graph' ? 'Graph RAG (GQL) · ' : result.mode === 'rag' ? 'Standard RAG · ' : ''}Response collection: {result.coverage.label} · {formatCount(result.coverage.source_count)} available sources{canonicalSummary(result.coverage) && ` · ${canonicalSummary(result.coverage)}`} · {Number.isFinite(result.timing_ms) ? `${(result.timing_ms / 1000).toFixed(1)}s` : 'Timing unavailable'}{result.partial ? ' · Partial response' : ''}</small><p className="result-scope">{result.citations.length} cited passages in this response; this is not an exhaustive reading of the collection.</p></div>}
           {result?.partial && <div className="notice partial-notice" role="status"><strong>Partial response.</strong> Some answer, graph, or evidence data may be missing. Review the service notices; this is not a complete finding.</div>}
           {!!warnings.length && <div className="service-notices" role="status"><strong>Collection & service notices</strong><ul>{warnings.map(warning => <li key={warning}>{warning}</li>)}</ul></div>}
           <div className="result-tabs" role="tablist" aria-label="Research result views">
@@ -208,7 +219,7 @@ export function App() {
               <div className="answer-region" id="view-answer" role="tabpanel" aria-labelledby="tab-answer">
                 <section className="answer-panel" aria-labelledby="answer-heading">
                   <div className="panel-heading"><div><span className="eyebrow">01 / Read the synthesis</span><h2 id="answer-heading" ref={answerHeading} tabIndex={-1}>The answer</h2></div><span className="answer-icon" aria-hidden="true">✳</span></div>
-                  {result ? <><Answer answer={result.answer} citations={result.citations} onCitation={chooseCitation} /><div className="answer-footnote">AI-generated synthesis · Check claims against the cited passages.</div><details className="request-details"><summary>Response metadata</summary><dl className="source-metadata"><div><dt>Request</dt><dd>{result.request_id}</dd></div><div><dt>Graph scope</dt><dd>Cited passages only</dd></div></dl></details></> : <div className="answer-empty"><span className="editorial-line" /><h3>A little context.<br />A clearer perspective.</h3><p>Your answer will appear here with clickable references to the original passages.</p><p className="muted">No question has been sent.</p></div>}
+                  {result ? <><Answer answer={result.answer} citations={result.citations} onCitation={chooseCitation} /><div className="answer-footnote">AI-generated synthesis · Check claims against the cited passages.</div><details className="request-details"><summary>Response metadata</summary><dl className="source-metadata"><div><dt>Request</dt><dd>{result.request_id}</dd></div><div><dt>Mode</dt><dd>{result.mode === 'graph' ? 'Graph RAG (search.graph GQL)' : 'Standard RAG (searchIndex)'}</dd></div><div><dt>Graph scope</dt><dd>{result.graph.basis === 'foundry_graph_index' ? 'Azure AI Search graph index (hydrated passages)' : 'Cited passages only'}</dd></div>{!!result.gql_queries?.length && <div><dt>GQL</dt><dd>{result.gql_queries.map((q, idx) => <code key={idx} className="gql-snippet">{q}</code>)}</dd></div>}</dl></details></> : <div className="answer-empty"><span className="editorial-line" /><h3>A little context.<br />A clearer perspective.</h3><p>Your answer will appear here with clickable references to the original passages.</p><p className="muted">No question has been sent.</p></div>}
                 </section>
               </div>
             </Activity>
